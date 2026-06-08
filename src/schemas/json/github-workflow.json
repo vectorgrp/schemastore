@@ -18,7 +18,7 @@
       "properties": {
         "group": {
           "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-using-concurrency-to-cancel-any-in-progress-job-or-run-1",
-          "description": "When a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled.",
+          "description": "When a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`.",
           "type": "string"
         },
         "cancel-in-progress": {
@@ -32,6 +32,13 @@
               "$ref": "#/definitions/expressionSyntax"
             }
           ]
+        },
+        "queue": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#example-queueing-multiple-pending-runs",
+          "description": "Controls how pending jobs or workflow runs are queued within a concurrency group. With the default `single`, at most one run can be pending — additional pending runs cancel the previous one. With `max`, up to 100 runs can be pending and are processed in FIFO order. The combination of `queue: max` and `cancel-in-progress: true` is not allowed.",
+          "type": "string",
+          "enum": ["single", "max"],
+          "default": "single"
         }
       },
       "required": ["group"],
@@ -62,16 +69,16 @@
         }
       ]
     },
-    "container": {
+    "jobContainer": {
       "type": "object",
       "properties": {
         "image": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainerimage",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainerimage",
           "description": "The Docker image to use as the container to run the action. The value can be the Docker Hub image name or a registry name.",
           "type": "string"
         },
         "credentials": {
-          "$comment": "https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idcontainercredentials",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainercredentials",
           "description": "If the image's container registry requires authentication to pull the image, you can use credentials to set a map of the username and password. The credentials are the same values that you would provide to the `docker login` command.",
           "type": "object",
           "properties": {
@@ -84,12 +91,12 @@
           }
         },
         "env": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainerenv",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainerenv",
           "$ref": "#/definitions/env",
-          "description": "Sets an array of environment variables in the container."
+          "description": "Sets a map of environment variables in the container."
         },
         "ports": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainerports",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainerports",
           "description": "Sets an array of ports to expose on the container.",
           "type": "array",
           "items": {
@@ -105,7 +112,7 @@
           "minItems": 1
         },
         "volumes": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontainervolumes",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontainervolumes",
           "description": "Sets an array of volumes for the container to use. You can use volumes to share data between services or other steps in a job. You can specify named Docker volumes, anonymous Docker volumes, or bind mounts on the host.\nTo specify a volume, you specify the source and destination path: <source>:<destinationPath>\nThe <source> is a volume name or an absolute path on the host machine, and <destinationPath> is an absolute path in the container.",
           "type": "array",
           "items": {
@@ -114,8 +121,78 @@
           "minItems": 1
         },
         "options": {
-          "$comment": "https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions#jobsjob_idcontaineroptions",
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idcontaineroptions",
           "description": "Additional Docker container resource options. For a list of options, see https://docs.docker.com/engine/reference/commandline/create/#options.",
+          "type": "string"
+        }
+      },
+      "required": ["image"],
+      "additionalProperties": false
+    },
+    "serviceContainer": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idimage",
+          "description": "The Docker image to use as the service container to run the action. The value can be the Docker Hub image name or a registry name.",
+          "type": "string"
+        },
+        "credentials": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idcredentials",
+          "description": "If the image's container registry requires authentication to pull the image, you can use credentials to set a map of the username and password. The credentials are the same values that you would provide to the `docker login` command.",
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "env": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idenv",
+          "$ref": "#/definitions/env",
+          "description": "Sets a map of environment variables in the service container."
+        },
+        "ports": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idports",
+          "description": "Sets an array of ports to expose on the service container.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "minItems": 1
+        },
+        "volumes": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idvolumes",
+          "description": "Sets an array of volumes for the service container to use. You can use volumes to share data between services or other steps in a job. You can specify named Docker volumes, anonymous Docker volumes, or bind mounts on the host.\nTo specify a volume, you specify the source and destination path: <source>:<destinationPath>\nThe <source> is a volume name or an absolute path on the host machine, and <destinationPath> is an absolute path in the container.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "options": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idoptions",
+          "description": "Additional Docker container resource options. For a list of options, see https://docs.docker.com/engine/reference/commandline/create/#options.",
+          "type": "string"
+        },
+        "command": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_idcommand",
+          "description": "Overrides the Docker image's default command (`CMD`). The value is passed as arguments after the image name in the `docker create` command. If you also specify `entrypoint`, `command` provides the arguments to that entrypoint.",
+          "type": "string"
+        },
+        "entrypoint": {
+          "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idservicesservice_identrypoint",
+          "description": "Overrides the Docker image's default `ENTRYPOINT`. The value is a single string defining the executable to run. Use this when you need to replace the image's entrypoint entirely. You can combine `entrypoint` with `command` to pass arguments to the custom entrypoint.",
           "type": "string"
         }
       },
@@ -162,10 +239,16 @@
         "actions": {
           "$ref": "#/definitions/permissions-level"
         },
+        "artifact-metadata": {
+          "$ref": "#/definitions/permissions-level"
+        },
         "attestations": {
           "$ref": "#/definitions/permissions-level"
         },
         "checks": {
+          "$ref": "#/definitions/permissions-level"
+        },
+        "code-quality": {
           "$ref": "#/definitions/permissions-level"
         },
         "contents": {
@@ -250,6 +333,19 @@
           "$comment": "https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#example-using-environment-name-and-url",
           "description": "A deployment URL",
           "type": "string"
+        },
+        "deployment": {
+          "$comment": "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments#using-environments-without-deployments",
+          "description": "Whether to create a deployment for this job. Setting to false lets the job use environment secrets and variables without creating a deployment record. Wait timers and required reviewers still apply.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/expressionSyntax"
+            }
+          ],
+          "default": true
         }
       },
       "required": ["name"],
@@ -348,6 +444,34 @@
           "$comment": "https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#custom-shell",
           "type": "string",
           "enum": ["bash", "pwsh", "python", "sh", "cmd", "powershell"]
+        }
+      ]
+    },
+    "snapshot": {
+      "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idsnapshot",
+      "description": "You can use `jobs.<job_id>.snapshot` to generate a custom image.\nAdd the snapshot keyword to the job, using either the string syntax or mapping syntax as shown in https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#generating-a-custom-image.\nEach job that includes the snapshot keyword creates a separate image. To generate only one image or image version, include all workflow steps in a single job. Each successful run of a job that includes the snapshot keyword creates a new version of that image.\nFor more information, see https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images.",
+      "oneOf": [
+        {
+          "$comment": "https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#string-syntax",
+          "type": "string",
+          "description": "You can use the string syntax with `snapshot` to define the image name. This method creates a new image or adds a new version to an existing image with the same name. You cannot specify a version number using this syntax."
+        },
+        {
+          "$comment": "https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#mapping-syntax",
+          "type": "object",
+          "additionalProperties": false,
+          "description": "You can use the mapping syntax with `snapshot` to define both the `image-name` and the optional `version`. When you specify a major version, the minor versioning automatically increments if that major version already exists. Patch versions are not supported.",
+          "properties": {
+            "image-name": {
+              "type": "string"
+            },
+            "version": {
+              "$comment": "https://docs.github.com/en/actions/how-tos/manage-runners/larger-runners/use-custom-images#specifying-a-version-in-your-workflow",
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+|\\*)?$"
+            }
+          },
+          "required": ["image-name"]
         }
       ]
     },
@@ -596,7 +720,7 @@
         },
         "concurrency": {
           "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idconcurrency",
-          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
+          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
           "oneOf": [
             {
               "type": "string"
@@ -622,6 +746,9 @@
         },
         "needs": {
           "$ref": "#/definitions/jobNeeds"
+        },
+        "snapshot": {
+          "$ref": "#/definitions/snapshot"
         },
         "permissions": {
           "$ref": "#/definitions/permissions"
@@ -782,7 +909,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/container"
+              "$ref": "#/definitions/jobContainer"
             }
           ]
         },
@@ -791,12 +918,12 @@
           "description": "Additional containers to host services for a job in a workflow. These are useful for creating databases or cache services like redis. The runner on the virtual machine will automatically create a network and manage the life cycle of the service containers.\nWhen you use a service container for a job or your step uses container actions, you don't need to set port information to access the service. Docker automatically exposes all ports between containers on the same network.\nWhen both the job and the action run in a container, you can directly reference the container by its hostname. The hostname is automatically mapped to the service name.\nWhen a step does not use a container action, you must access the service using localhost and bind the ports.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/container"
+            "$ref": "#/definitions/serviceContainer"
           }
         },
         "concurrency": {
           "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idconcurrency",
-          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
+          "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
           "oneOf": [
             {
               "type": "string"
@@ -932,7 +1059,6 @@
           }
         }
       ],
-      "required": ["description"],
       "additionalProperties": false
     }
   },
@@ -1733,16 +1859,22 @@
               "description": "You can use the GitHub API to trigger a webhook event called repository_dispatch when you want to trigger a workflow for activity that happens outside of GitHub. For more information, see https://developer.github.com/v3/repos/#create-a-repository-dispatch-event.\nTo trigger the custom repository_dispatch webhook event, you must send a POST request to a GitHub API endpoint and provide an event_type name to describe the activity type. To trigger a workflow run, you must also configure your workflow to use the repository_dispatch event."
             },
             "schedule": {
-              "$comment": "https://help.github.com/en/github/automating-your-workflow-with-github-actions/events-that-trigger-workflows#scheduled-events-schedule",
-              "description": "You can schedule a workflow to run at specific UTC times using POSIX cron syntax (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07). Scheduled workflows run on the latest commit on the default or base branch. The shortest interval you can run scheduled workflows is once every 5 minutes.\nNote: GitHub Actions does not support the non-standard syntax @yearly, @monthly, @weekly, @daily, @hourly, and @reboot.\nYou can use crontab guru (https://crontab.guru/). to help generate your cron syntax and confirm what time it will run. To help you get started, there is also a list of crontab guru examples (https://crontab.guru/examples.html).",
+              "$comment": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule",
+              "description": "You can schedule a workflow to run at specific UTC times using POSIX cron syntax (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/crontab.html#tag_20_25_07). You can optionally specify a timezone using an IANA timezone string (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) for timezone-aware scheduling. Scheduled workflows run on the latest commit on the default or base branch. The shortest interval you can run scheduled workflows is once every 5 minutes.\nNote: GitHub Actions does not support the non-standard syntax @yearly, @monthly, @weekly, @daily, @hourly, and @reboot.\nYou can use crontab guru (https://crontab.guru/) to help generate your cron syntax and confirm what time it will run. To help you get started, there is also a list of crontab guru examples (https://crontab.guru/examples.html).",
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
                   "cron": {
+                    "description": "A cron expression that represents a schedule. A scheduled workflow will run at most once every 5 minutes.",
+                    "type": "string"
+                  },
+                  "timezone": {
+                    "description": "A string that represents the time zone a scheduled workflow will run relative to in IANA format (e.g. 'America/New_York' or 'Europe/London'). If omitted, the workflow will run relative to midnight UTC.",
                     "type": "string"
                   }
                 },
+                "required": ["cron"],
                 "additionalProperties": false
               },
               "minItems": 1
@@ -1764,7 +1896,7 @@
     },
     "concurrency": {
       "$comment": "https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#concurrency",
-      "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. Any previously pending job or workflow in the concurrency group will be canceled. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
+      "description": "Concurrency ensures that only a single job or workflow using the same concurrency group will run at a time. A concurrency group can be any string or expression. The expression can use any context except for the secrets context. \nYou can also specify concurrency at the workflow level. \nWhen a concurrent job or workflow is queued, if another job or workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be pending. By default any previously pending job or workflow in the concurrency group will be canceled; this behavior can be changed with `queue`. To also cancel any currently running job or workflow in the same concurrency group, specify cancel-in-progress: true.",
       "oneOf": [
         {
           "type": "string"
